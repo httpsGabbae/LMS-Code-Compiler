@@ -8,7 +8,7 @@
     <title>LCC Compiler</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/app.css?v=5">
+    <link rel="stylesheet" href="assets/app.css?v=6">
 </head>
 
 <body class="cursor-ide">
@@ -28,9 +28,10 @@
                 </div>
                 <div class="side-group">
                     <h3>FILES</h3>
-                    <ul class="files">
+                    <ul class="files" id="fileList">
                         <li class="file active" id="explorerFile">main.py</li>
                     </ul>
+                    <button id="addFile" class="btn-secondary block">+ Add file</button>
                 </div>
                 <div class="side-group">
                     <h3>LANGUAGE</h3>
@@ -47,13 +48,14 @@
             <section class="side-section hidden" id="view-run">
                 <h2>RUN AND SUBMIT</h2>
                 <button id="runBtn" class="btn-primary block">Run</button>
+                <button id="checkAll" class="btn-primary block">Check all</button>
                 <button id="fmtBtn" class="btn-secondary block">Format (JS)</button>
                 <button id="subBtn" class="btn-primary block">Submit to prof</button>
                 <p class="hint">Runner: local demo · 10s limit · C/C++ need Docker</p>
             </section>
         </aside>
         <main class="main card">
-            <div class="tabs">
+            <div class="tabs" id="tabs">
                 <div class="tab active"><span id="tabFile">main.py</span><span class="dirty" id="tabDirty">●</span></div>
             </div>
             <div id="editor"></div>
@@ -63,7 +65,9 @@
                     <button class="ptab" data-panel="input">INPUT</button>
                 </div>
                 <div class="panel-body" id="panel-output">
+                    <div id="checkResults"></div>
                     <pre id="output">Ready.</pre>
+                    <iframe id="htmlPreview" class="hidden" sandbox></iframe>
                 </div>
                 <div class="panel-body hidden" id="panel-input"><textarea id="stdin" rows="4" placeholder="Program input goes here..."></textarea></div>
             </div>
@@ -83,7 +87,7 @@
     <script src="https://cdn.jsdelivr.net/npm/prettier@3.3.3/plugins/babel.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/prettier@3.3.3/plugins/html.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/prettier@3.3.3/plugins/postcss.js"></script>
-    <script src="assets/app.js?v=4"></script>
+    <script src="assets/app.js?v=5"></script>
 </body>
 
 </html>
