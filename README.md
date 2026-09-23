@@ -27,10 +27,32 @@ XAMPP-native classroom IDE precursor: Monaco editor + Judge0 run + 5s autosnapsh
 - Code 50KB max, stdin 10KB max (server 400 `too large`, client pre-check blocks).
 - Output capped 20KB (stdout/stderr truncated server-side).
 - Run curl timeout ~12s (plan target 10s server / 15s client).
-- Snapshots: student page POSTs to `api/snapshot.php` every 5s (upsert per student+class+language); prof JSON feed `api/poll.php?class_code=XXX` returns `{rows}`.
+- Snapshots: student page POSTs to `api/snapshot.php` every 5s (upsert per student+class+filename, language server-derived from filename); prof JSON feed `api/poll.php?class_code=XXX` returns `{rows}` with `filename` per row.
 - Submit: `api/submit.php` inserts frozen copy into `submissions` (never updated).
 - Slice 1 has no auth — student name/class are free-text inputs.
 
 ## Language IDs (Judge0)
 
-Python=71, JS Node=63, PHP=68, Java=62, C++=54, C=50.
+Python=71, JS Node=63, PHP=68, Java=62, C#=51, C++=54, C=50.
+
+## Check-all (multi-file)
+
+Every file carries its language via its extension. The server derives the language with `ext_lang()` in `config/languages.php` — a client-sent language is never trusted for execution choice.
+
+| Extension | Language | Kind | How Check-all handles it |
+|---|---|---|---|
+| `.py` | python | run | Run against matching `test_cases` rows |
+| `.js` | javascript | run | Run against matching `test_cases` rows |
+| `.php` | php | run | Run against matching `test_cases` rows |
+| `.java` | java | run | Run against matching `test_cases` rows |
+| `.cs` | csharp | run | Run against matching `test_cases` rows (dotnet SDK `csc` locally, Judge0 51 first) |
+| `.cpp` | cpp | run | Needs gcc or Judge0 Docker, else `needs Docker` status |
+| `.c` | c | run | Needs gcc or Judge0 Docker, else `needs Docker` status |
+| `.html` | html | preview | Rendered (PHP sniffed+executed, sibling `style.css`/`app.js` inlined); `test_cases` rows act as substring rules |
+| `.css` | css | validate | Brace/paren/bracket balance + one-substring-per-row rules from `test_cases` |
+
+Test-case authoring: prof page "Test cases" form (class, language incl. csharp/html/css, stdin textarea, expected textarea; 10KB caps each; delete button per row). Cases are stored in `test_cases(class_code, language, stdin, expected_stdout)` and apply to every student file whose derived language matches.
+
+Matching rule (normalized): outputs compare with `norm_output()` — leading/trailing blank lines stripped, trailing spaces stripped per line. HTML preview uses substring match instead of exact equality.
+
+Limits: 50KB/file, 10KB stdin, 20KB output cap, 10s per file, ~60s batch cap (`truncated: true` when hit).

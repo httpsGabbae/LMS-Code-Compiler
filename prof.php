@@ -2,14 +2,46 @@
 require_once __DIR__ . '/config/database.php';
 $filter = $_GET['class_code'] ?? 'BSIT-2A';
 $m = db();
-$st = $m->prepare("SELECT student_name,language,LEFT(code,500) AS cp,updated_at FROM snapshots WHERE class_code=? ORDER BY updated_at DESC LIMIT 50");
+$tc_err = ''; $tc_msg = '';
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    require_csrf();
+    if (isset($_POST['add_case'])) {
+        $tcc = trim($_POST['tc_class'] ?? ''); $tcl = $_POST['tc_lang'] ?? '';
+        $tcs = $_POST['tc_stdin'] ?? ''; $tce = $_POST['tc_expected'] ?? '';
+        $known = ['python','javascript','php','java','csharp','cpp','c','html','css'];
+        if ($tcc === '' || mb_strlen($tcc) > 50 || !in_array($tcl, $known, true)) { http_response_code(400); $tc_err = 'Bad class or language.'; }
+        elseif (strlen($tcs) > 10240 || strlen($tce) > 10240) { http_response_code(400); $tc_err = 'Stdin/expected exceed 10KB.'; }
+        else {
+            $ins = $m->prepare("INSERT INTO test_cases (class_code,language,stdin,expected_stdout) VALUES (?,?,?,?)");
+            if ($ins === false) { http_response_code(500); $tc_err = 'DB failed.'; }
+            else {
+                $ins->bind_param('ssss', $tcc, $tcl, $tcs, $tce);
+                if ($ins->execute()) { $tc_msg = 'Case added.'; } else { http_response_code(500); $tc_err = 'DB failed.'; }
+            }
+        }
+    } elseif (isset($_POST['del_case'])) {
+        $id = (int)($_POST['del_case'] ?? 0);
+        if ($id > 0) {
+            $del = $m->prepare("DELETE FROM test_cases WHERE id=?");
+            if ($del !== false) { $del->bind_param('i', $id); $del->execute(); $tc_msg = 'Case deleted.'; }
+        }
+    }
+}
+$tc_langs = ['python','javascript','php','java','csharp','cpp','c','html','css'];
+$st = $m->prepare("SELECT student_name,filename,language,LEFT(code,500) AS cp,updated_at FROM snapshots WHERE class_code=? ORDER BY updated_at DESC LIMIT 50");
 $st->bind_param('s', $filter);
 $st->execute();
 $snaps = $st->get_result();
+$grouped = [];
+while ($r = $snaps->fetch_assoc()) { $grouped[$r['student_name']][] = $r; }
 $st2 = $m->prepare("SELECT student_name,language,LEFT(code,500) AS cp,LEFT(output,500) AS op,created_at FROM submissions WHERE class_code=? ORDER BY created_at DESC LIMIT 50");
 $st2->bind_param('s', $filter);
 $st2->execute();
 $subs = $st2->get_result();
+$stc = $m->prepare("SELECT id,class_code,language,LEFT(stdin,200) AS si,LEFT(expected_stdout,200) AS eo FROM test_cases WHERE class_code=? ORDER BY id");
+$stc->bind_param('s', $filter);
+$stc->execute();
+$cases = $stc->get_result();
 ?>
 <!doctype html>
 <html>
@@ -43,17 +75,59 @@ $subs = $st2->get_result();
                 <table>
                     <tr>
                         <th>Student</th>
+                        <th>File</th>
                         <th>Lang</th>
                         <th>Preview</th>
                         <th>Updated</th>
                     </tr>
-                    <?php while ($r = $snaps->fetch_assoc()): ?><tr>
-                            <td><?php echo e($r['student_name']); ?></td>
+                    <?php foreach ($grouped as $sname => $files): ?><tr>
+                            <td colspan="5"><strong><?php echo e($sname); ?></strong> <span class="hint"><?php echo count($files); ?> file(s)</span></td>
+                        </tr><?php foreach ($files as $r): ?><tr>
+                            <td></td>
+                            <td><?php echo e($r['filename'] !== '' ? $r['filename'] : '(legacy)'); ?></td>
                             <td><?php echo e($r['language']); ?></td>
                             <td>
                                 <pre><?php echo e($r['cp']); ?></pre>
                             </td>
                             <td><?php echo e($r['updated_at']); ?></td>
+                        </tr><?php endforeach; ?><?php endforeach; ?>
+                </table>
+                <div class="tabs" style="margin-top:16px">
+                    <div class="tab active"><span>Test cases</span></div>
+                </div>
+                <?php if ($tc_err !== ''): ?><p class="hint"><?php echo e($tc_err); ?></p><?php endif; ?>
+                <?php if ($tc_msg !== ''): ?><p class="hint"><?php echo e($tc_msg); ?></p><?php endif; ?>
+                <form method="post">
+                    <?php echo csrf_field(); ?>
+                    <input type="hidden" name="add_case" value="1">
+                    <input name="tc_class" value="<?php echo e($filter); ?>" autocomplete="off" placeholder="Class (e.g. BSIT-2A)">
+                    <select name="tc_lang"><?php foreach ($tc_langs as $tl): ?><option value="<?php echo e($tl); ?>"><?php echo e($tl); ?></option><?php endforeach; ?></select>
+                    <textarea name="tc_stdin" placeholder="stdin (max 10KB)"></textarea>
+                    <textarea name="tc_expected" placeholder="expected stdout (max 10KB)"></textarea>
+                    <button class="block">Add case</button>
+                </form>
+                <table>
+                    <tr>
+                        <th>ID</th>
+                        <th>Class</th>
+                        <th>Lang</th>
+                        <th>Stdin</th>
+                        <th>Expected</th>
+                        <th></th>
+                    </tr>
+                    <?php while ($r = $cases->fetch_assoc()): ?><tr>
+                            <td><?php echo (int)$r['id']; ?></td>
+                            <td><?php echo e($r['class_code']); ?></td>
+                            <td><?php echo e($r['language']); ?></td>
+                            <td>
+                                <pre><?php echo e($r['si']); ?></pre>
+                            </td>
+                            <td>
+                                <pre><?php echo e($r['eo']); ?></pre>
+                            </td>
+                            <td>
+                                <form method="post"><?php echo csrf_field(); ?><button name="del_case" value="<?php echo (int)$r['id']; ?>">Delete</button></form>
+                            </td>
                         </tr><?php endwhile; ?>
                 </table>
                 <div class="tabs" style="margin-top:16px">
