@@ -1,15 +1,22 @@
 <?php
 require_once __DIR__.'/../config/database.php';
+require_once __DIR__.'/../config/languages.php';
 header('Content-Type: application/json');
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') { http_response_code(405); echo json_encode(['error'=>'POST only']); exit; }
 require_csrf();
-$map = ['python'=>71,'javascript'=>63,'php'=>68,'java'=>62,'cpp'=>54,'c'=>50];
 $lang = $_POST['language'] ?? '';
+$filename = trim($_POST['filename'] ?? '');
+if ($filename !== '') {
+  $derived = ext_lang($filename);
+  if ($derived === null) { http_response_code(400); echo json_encode(['error'=>'bad filename']); exit; }
+  $lang = $derived;
+}
+$jid = judge_id($lang);
 $code = $_POST['code'] ?? '';
 $stdin = $_POST['stdin'] ?? '';
-if (!isset($map[$lang])) { http_response_code(400); echo json_encode(['error'=>'bad language']); exit; }
+if ($jid === null) { http_response_code(400); echo json_encode(['error'=>'bad language']); exit; }
 if (strlen($code) > 50000 || strlen($stdin) > 10000) { http_response_code(400); echo json_encode(['error'=>'too large']); exit; }
-$payload = json_encode(['language_id'=>$map[$lang],'source_code'=>base64_encode($code),'stdin'=>base64_encode($stdin)]);
+$payload = json_encode(['language_id'=>$jid,'source_code'=>base64_encode($code),'stdin'=>base64_encode($stdin)]);
 $ch = curl_init(rtrim(JUDGE0_URL,'/').'/submissions?base64_encoded=true&wait=true');
 curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true,CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>$payload,CURLOPT_TIMEOUT=>12,CURLOPT_HTTPHEADER=>array_merge(['Content-Type: application/json'], JUDGE0_KEY !== '' ? ['X-RapidAPI-Key: '.JUDGE0_KEY, 'X-RapidAPI-Host: '.JUDGE0_HOST] : [])]);
 $resp = curl_exec($ch); $err = curl_error($ch); $http = curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
@@ -34,11 +41,20 @@ $phpBin = file_exists('D:\\Xampp\\php\\php.exe') ? 'D:\\Xampp\\php\\php.exe' : '
 $nodeBin = file_exists('C:\\Program Files\\nodejs\\node.exe') ? 'C:\\Program Files\\nodejs\\node.exe' : 'node';
 $javacBin = file_exists('C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.17.10-hotspot\\bin\\javac.exe') ? 'C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.17.10-hotspot\\bin\\javac.exe' : 'javac';
 $javaBin = file_exists('C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.17.10-hotspot\\bin\\java.exe') ? 'C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.17.10-hotspot\\bin\\java.exe' : 'java';
+$cscDll = null; foreach ((array)glob('C:/Program Files/dotnet/sdk/*/Roslyn/bincore/csc.dll') as $d) { $cscDll = $d; }
 $runCmd = '';
 if ($lang === 'python') { file_put_contents($tmp.'/main.py', $code); $runCmd = escapeshellarg($pyBin).' '.escapeshellarg($tmp.'/main.py'); }
 elseif ($lang === 'php') { file_put_contents($tmp.'/main.php', $code); $runCmd = escapeshellarg($phpBin).' '.escapeshellarg($tmp.'/main.php'); }
 elseif ($lang === 'javascript') { file_put_contents($tmp.'/main.js', $code); $runCmd = escapeshellarg($nodeBin).' '.escapeshellarg($tmp.'/main.js'); }
 elseif ($lang === 'java') { file_put_contents($tmp.'/Main.java', $code); $runCmd = escapeshellarg($javacBin).' '.escapeshellarg($tmp.'/Main.java').' && '.escapeshellarg($javaBin).' -cp '.escapeshellarg($tmp).' Main'; }
+elseif ($lang === 'csharp') {
+  file_put_contents($tmp.'/Main.cs', $code);
+  $refDir = null; foreach ((array)glob('C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Ref/*/ref/net*/') as $g) { $refDir = rtrim($g, '/\\').'/'; }
+  if ($cscDll === null || $refDir === null) { echo json_encode(['status'=>'needs SDK','stdout'=>'','stderr'=>'dotnet SDK csc not found','time'=>'']); exit; }
+  $refArgs = ''; foreach (['mscorlib.dll','netstandard.dll','System.Runtime.dll','System.Console.dll','System.Collections.dll','System.Linq.dll','System.Linq.Expressions.dll','System.Text.RegularExpressions.dll','System.Threading.dll','System.Threading.Tasks.dll'] as $r) { if (file_exists($refDir.$r)) $refArgs .= ' /r:'.escapeshellarg($refDir.$r); }
+  file_put_contents($tmp.'/Main.runtimeconfig.json', '{"runtimeOptions":{"tfm":"net8.0","framework":{"name":"Microsoft.NETCore.App","version":"8.0.0"}}}');
+  $runCmd = 'dotnet '.escapeshellarg($cscDll).' /nologo'.$refArgs.' /out:'.escapeshellarg($tmp.'/Main.dll').' '.escapeshellarg($tmp.'/Main.cs').' && dotnet '.escapeshellarg($tmp.'/Main.dll');
+}
 $desc = [0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']];
 $proc = proc_open($runCmd, $desc, $pipes, $tmp);
 if (!is_resource($proc)) { http_response_code(502); echo json_encode(['error'=>'local runner failed to start']); exit; }
@@ -58,5 +74,5 @@ foreach ([1,2] as $i) { $rest = stream_get_contents($pipes[$i]); if ($rest !== f
 @proc_close($proc);
 if ($timedOut) $stderr .= "\n[TIMEOUT after 10s — demo limit]";
 $stdout = substr($stdout, 0, 20000); $stderr = substr(trim($stderr), 0, 20000);
-@unlink($tmp.'/main.py'); @unlink($tmp.'/main.php'); @unlink($tmp.'/main.js'); @unlink($tmp.'/Main.java'); @unlink($tmp.'/Main.class'); @rmdir($tmp);
+@unlink($tmp.'/main.py'); @unlink($tmp.'/main.php'); @unlink($tmp.'/main.js'); @unlink($tmp.'/Main.java'); @unlink($tmp.'/Main.class'); @unlink($tmp.'/Main.cs'); @unlink($tmp.'/Main.dll'); @unlink($tmp.'/Main.runtimeconfig.json'); @rmdir($tmp);
 echo json_encode(['status'=>($timedOut ? 'Timeout' : 'Accepted').' (local demo)','stdout'=>$stdout,'stderr'=>$stderr,'time'=>'']);
