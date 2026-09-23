@@ -60,7 +60,7 @@ elseif ($lang === 'csharp') {
 }
 $desc = [0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']];
 $proc = proc_open($runCmd, $desc, $pipes, $tmp);
-if (!is_resource($proc)) { http_response_code(502); echo json_encode(['error'=>'local runner failed to start']); exit; }
+if (!is_resource($proc)) { @unlink($tmp.'/main.py'); @unlink($tmp.'/main.php'); @unlink($tmp.'/main.js'); @unlink($tmp.'/Main.java'); @unlink($tmp.'/Main.class'); @unlink($tmp.'/Main.cs'); @unlink($tmp.'/Main.dll'); @unlink($tmp.'/Main.pdb'); @unlink($tmp.'/Main.runtimeconfig.json'); @rmdir($tmp); http_response_code(502); echo json_encode(['error'=>'local runner failed to start']); exit; }
 fwrite($pipes[0], $stdin); fclose($pipes[0]);
 stream_set_blocking($pipes[1], false); stream_set_blocking($pipes[2], false);
 $stdout = ''; $stderr = ''; $t0 = microtime(true); $timedOut = false;

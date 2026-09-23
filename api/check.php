@@ -54,7 +54,7 @@ function run_code(string $lang, string $code, string $stdin): array {
   }
   $desc = [0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']];
   $proc = proc_open($runCmd, $desc, $pipes, $tmp);
-  if (!is_resource($proc)) { return ['status'=>'local runner failed','stdout'=>'','stderr'=>'','time'=>'']; }
+  if (!is_resource($proc)) { @unlink($tmp.'/main.py'); @unlink($tmp.'/main.php'); @unlink($tmp.'/main.js'); @unlink($tmp.'/Main.java'); @unlink($tmp.'/Main.class'); @unlink($tmp.'/Main.cs'); @unlink($tmp.'/Main.dll'); @unlink($tmp.'/Main.pdb'); @unlink($tmp.'/Main.runtimeconfig.json'); @rmdir($tmp); return ['status'=>'local runner failed','stdout'=>'','stderr'=>'','time'=>'']; }
   fwrite($pipes[0], $stdin); fclose($pipes[0]);
   stream_set_blocking($pipes[1], false); stream_set_blocking($pipes[2], false);
   $stdout = ''; $stderr = ''; $t0 = microtime(true); $timedOut = false;
@@ -130,7 +130,26 @@ foreach ($files as $f) {
       @mkdir($ptmp, 0700, true);
       file_put_contents($ptmp.'/preview.php', $src);
       $phpBin = file_exists('D:\Xampp\php\php.exe') ? 'D:\Xampp\php\php.exe' : 'php';
-      $rendered = (string)@shell_exec(escapeshellarg($phpBin).' '.escapeshellarg($ptmp.'/preview.php').' 2>&1');
+      $rendered = '';
+      $rproc = proc_open(escapeshellarg($phpBin).' '.escapeshellarg($ptmp.'/preview.php'), [0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']], $rpipes);
+      if (is_resource($rproc)) {
+        fclose($rpipes[0]);
+        stream_set_blocking($rpipes[1], false); stream_set_blocking($rpipes[2], false);
+        $rout = ''; $rt0 = microtime(true); $rtimed = false;
+        while (true) {
+          $rst = proc_get_status($rproc);
+          $rread = []; if (!feof($rpipes[1])) $rread[] = $rpipes[1]; if (!feof($rpipes[2])) $rread[] = $rpipes[2];
+          if ($rread) { $rw = null; $re = null; @stream_select($rread, $rw, $re, 0, 200000); foreach ($rread as $rr) { $chunk = fread($rr, 8192); if ($chunk !== false && $chunk !== '') { if ($rr === $rpipes[1]) $rout .= $chunk; } } }
+          if (!$rst['running']) break;
+          if (microtime(true) - $rt0 > 10) { $rtimed = true; @proc_terminate($rproc); break; }
+          usleep(50000);
+          if (strlen($rout) > 20000) break;
+        }
+        foreach ([1,2] as $i) { $rest = stream_get_contents($rpipes[$i]); if ($rest !== false && $i === 1) $rout .= $rest; fclose($rpipes[$i]); }
+        @proc_close($rproc);
+        if ($rtimed) $rout .= "\n[TIMEOUT after 10s — demo limit]";
+        $rendered = substr($rout, 0, 20000);
+      }
       @unlink($ptmp.'/preview.php'); @rmdir($ptmp);
     }
     $cases = check_tc_rows($c, 'html');
