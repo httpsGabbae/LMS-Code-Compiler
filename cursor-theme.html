@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LCC Compiler — Cursor-theme preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Tokens: exact from cursor/DESIGN.md — never inline hex elsewhere. */
+:root{
+  --canvas:#f7f7f4;--canvas-soft:#fafaf7;--card:#ffffff;
+  --ink:#26251e;--body:#5a5852;--muted:#807d72;--muted-soft:#a09c92;
+  --hairline:#e6e5e0;--hairline-soft:#efeee8;--hairline-strong:#cfcdc4;
+  --primary:#f54e00;--primary-active:#d04200;--on-primary:#ffffff;
+  --tl-thinking:#dfa88f;--tl-grep:#9fc9a2;--tl-read:#9fbbe0;--tl-edit:#c0a8dd;--tl-done:#c08532;
+  --err:#cf2d56;--ok:#1f8a65;
+  --r-md:8px;--r-lg:12px;--r-pill:9999px;
+  --ease-out:cubic-bezier(0.23,1,0.32,1);
+  --sans:'Inter',system-ui,'Helvetica Neue',Helvetica,Arial,sans-serif;
+  --mono:'JetBrains Mono','Fira Code',monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--canvas);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;display:flex;flex-direction:column;overflow:hidden}
+/* Top bar: 56px, cream, wordmark + orange Run (button-primary: 40px, 8px). */
+.topbar{height:56px;flex:none;display:flex;align-items:center;gap:12px;padding:0 16px;border-bottom:1px solid var(--hairline)}
+.wordmark{font-size:16px;font-weight:600;letter-spacing:0}
+.wordmark em{font-style:normal;color:var(--primary)}
+.badge-pill{background:var(--hairline);color:var(--ink);font-size:11px;font-weight:600;letter-spacing:.88px;text-transform:uppercase;border-radius:var(--r-pill);padding:4px 10px}
+.topbar .spacer{flex:1}
+.btn-primary{background:var(--primary);color:var(--on-primary);font-size:14px;font-weight:500;line-height:1;border:none;border-radius:var(--r-md);padding:10px 18px;height:40px;cursor:pointer;transition:transform 120ms var(--ease-out),background 160ms var(--ease-out)}
+.btn-primary:active{background:var(--primary-active);transform:scale(.97)}
+/* Shell grid: activity | sidebar | editor / panel / status, 12px floating gaps. */
+.shell{flex:1;min-height:0;display:grid;gap:12px;padding:12px;
+  grid-template-columns:56px 260px minmax(0,1fr);
+  grid-template-rows:minmax(0,1fr) 220px 28px;
+  grid-template-areas:"activity sidebar editor" "activity sidebar panel" "status status status"}
+.shell.collapsed{grid-template-columns:56px 0 minmax(0,1fr)}
+.shell.collapsed .sidebar{overflow:hidden;padding-left:0;padding-right:0;border-color:transparent}
+.card{background:var(--card);border:1px solid var(--hairline);border-radius:var(--r-lg);min-height:0;min-width:0}
+/* Activity bar */
+.activity{grid-area:activity;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:4px}
+.activity button{background:none;border:none;border-left:2px solid transparent;color:var(--muted);width:100%;height:44px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color 160ms var(--ease-out),border-color 160ms var(--ease-out),transform 120ms var(--ease-out);padding:0}
+.activity button.active{color:var(--ink);border-left-color:var(--primary)}
+.activity button:active{transform:scale(.96)}
+.activity .spacer{flex:1}
+/* Sidebar: file tree */
+.sidebar{grid-area:sidebar;overflow-y:auto;padding:12px}
+.side-head{font-size:11px;font-weight:600;letter-spacing:.88px;text-transform:uppercase;color:var(--muted);margin:2px 0 8px}
+.tree,.tree ul{list-style:none;margin:0;padding:0}
+.tree ul{padding-left:14px}
+.folder,.file{display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:6px;cursor:pointer;font-size:13px;transition:background 160ms var(--ease-out)}
+.folder{color:var(--ink);font-weight:600}
+.file{color:var(--body)}
+.file:hover,.folder:hover{background:var(--hairline-soft)}
+.file.active{background:var(--hairline-soft);color:var(--ink)}
+.caret{display:inline-block;font-size:10px;color:var(--muted);transition:transform 160ms var(--ease-out)}
+.folder.closed .caret{transform:rotate(-90deg)}
+.folder.closed + ul{display:none}
+.note{margin-top:16px;background:var(--canvas-soft);border:1px solid var(--hairline);border-radius:var(--r-md);padding:12px;font-size:13px;color:var(--body)}
+/* Editor card */
+.editor-card{grid-area:editor;display:flex;flex-direction:column;overflow:hidden}
+.tabs{display:flex;gap:2px;padding:8px 8px 0;border-bottom:1px solid var(--hairline)}
+.tab{background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);font-family:var(--sans);font-size:13px;padding:6px 10px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:color 160ms var(--ease-out),border-color 160ms var(--ease-out)}
+.tab.active{color:var(--ink);border-bottom-color:var(--primary)}
+.tab .x{color:var(--muted-soft);border-radius:4px;padding:0 4px;font-size:12px}
+.tab .x:hover{background:var(--hairline-soft);color:var(--ink)}
+.editor-wrap{flex:1;display:flex;min-height:0;background:var(--canvas-soft);border-radius:0 0 var(--r-lg) var(--r-lg)}
+.gutter{flex:none;width:48px;padding:12px 8px 12px 0;text-align:right;font-family:var(--mono);font-size:13px;line-height:1.5;color:var(--muted-soft);overflow:hidden;user-select:none;white-space:pre}
+#code{flex:1;border:none;outline:none;resize:none;background:transparent;color:var(--ink);font-family:var(--mono);font-size:13px;line-height:1.5;padding:12px 16px 12px 4px;white-space:pre}
+/* Bottom panel: resizable drawer */
+.panel{grid-area:panel;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.panel-handle{position:absolute;top:0;left:0;right:0;height:8px;cursor:ns-resize}
+.panel-tabs{display:flex;gap:2px;padding:6px 12px 0;border-bottom:1px solid var(--hairline)}
+.ptab{background:none;border:none;color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.88px;text-transform:uppercase;padding:5px 10px;cursor:pointer;border-bottom:2px solid transparent;transition:color 160ms var(--ease-out),border-color 160ms var(--ease-out)}
+.ptab.active{color:var(--ink);border-bottom-color:var(--primary)}
+.term{flex:1;overflow-y:auto;padding:10px 16px;font-family:var(--mono);font-size:13px;line-height:1.5;color:var(--body)}
+.term .prompt{color:var(--primary);margin-right:8px}
+.term-row{display:flex;align-items:center}
+#termInput{flex:1;background:none;border:none;outline:none;color:var(--ink);font-family:var(--mono);font-size:13px;padding:0}
+.pill{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.88px;text-transform:uppercase;border-radius:var(--r-pill);padding:2px 10px;margin:2px 4px 2px 0;color:var(--ink)}
+.pill.thinking{background:var(--tl-thinking)}.pill.grep{background:var(--tl-grep)}.pill.read{background:var(--tl-read)}.pill.edit{background:var(--tl-edit)}.pill.done{background:var(--tl-done);color:var(--on-primary)}
+.term .ok{color:var(--ok)}.term .err{color:var(--err)}
+/* Status bar */
+.status{grid-area:status;display:flex;align-items:center;gap:16px;background:var(--card);border:1px solid var(--hairline);border-radius:var(--r-lg);padding:0 16px;font-size:13px;color:var(--body)}
+.status .spacer{flex:1}
+.status .dot{color:var(--primary);font-weight:600}
+@media(hover:hover) and (pointer:fine){.tab:hover{color:var(--ink)}.ptab:hover{color:var(--ink)}}
+@media(max-width:900px){.shell{grid-template-columns:48px 200px minmax(0,1fr)}}
+@media(prefers-reduced-motion:reduce){*{transition-duration:0ms!important}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <span class="wordmark">LCC <em>Compiler</em></span>
+  <span class="badge-pill">Cursor-theme preview</span>
+  <span class="spacer"></span>
+  <button class="btn-primary" id="runBtn">Run</button>
+</header>
+<div class="shell" id="shell">
+  <nav class="activity card" aria-label="Activity">
+    <button class="active" id="actExplorer" title="Explorer"><svg viewBox="0 0 16 16" width="22" height="22" fill="currentColor"><path d="M3 1h6l2 2h2v10H3V1zm6 1.5V4h1.5L9 2.5zM5 7h6v1H5V7zm0 2h6v1H5V9z"/></svg></button>
+    <button id="actTerminal" title="Terminal"><svg viewBox="0 0 16 16" width="22" height="22" fill="currentColor"><path d="M2 3h12v10H2V3zm2 2v1.5L5.5 8 4 9.5V11h6v-1.5H5.8L7.3 8 5.8 6.5H10V5H4z"/></svg></button>
+    <span class="spacer"></span>
+    <button id="actCollapse" title="Toggle sidebar"><svg viewBox="0 0 16 16" width="22" height="22" fill="currentColor"><path d="M10 3L5 8l5 5V3z"/></svg></button>
+  </nav>
+  <aside class="sidebar card" id="sidebar">
+    <div class="side-head">Explorer</div>
+    <ul class="tree" id="tree">
+      <li><div class="folder" data-folder><span class="caret">▾</span> src</div>
+        <ul>
+          <li><div class="file active" data-file="main.py">main.py</div></li>
+          <li><div class="file" data-file="app.js">app.js</div></li>
+          <li><div class="file" data-file="styles.css">styles.css</div></li>
+        </ul>
+      </li>
+      <li><div class="folder closed" data-folder><span class="caret">▾</span> assets</div>
+        <ul><li><div class="file" data-file="logo.png">logo.png</div></li></ul>
+      </li>
+    </ul>
+    <div class="note">Preview only — static files. Wire to <code>api/run.php</code> next to make Run real.</div>
+  </aside>
+  <main class="editor-card card">
+    <div class="tabs" id="tabs"></div>
+    <div class="editor-wrap">
+      <div class="gutter" id="gutter">1</div>
+      <textarea id="code" spellcheck="false" autocomplete="off"></textarea>
+    </div>
+  </main>
+  <section class="panel card" id="panel">
+    <div class="panel-handle" id="resize"></div>
+    <div class="panel-tabs">
+      <button class="ptab active" data-ptab="term">Terminal</button>
+      <button class="ptab" data-ptab="agent">Agent</button>
+    </div>
+    <div class="term" id="termTab">
+      <div id="termOut"><div><span class="prompt">$</span> type <b>help</b> — this console is a mock</div></div>
+      <div class="term-row"><span class="prompt">$</span><input id="termInput" autocomplete="off" spellcheck="false"></div>
+    </div>
+    <div class="term" id="agentTab" style="display:none">
+      <div><span class="pill thinking">Thinking</span><span class="pill read">Reading</span><span class="pill grep">Grep</span><span class="pill edit">Editing</span><span class="pill done">Done</span></div>
+      <div style="margin-top:8px">Last run: <span class="ok">main.py → 1 in 0.04s</span></div>
+    </div>
+  </section>
+  <footer class="status">
+    <span id="stPos">Ln 1, Col 1</span><span id="stLang">Python</span><span>Spaces: 2</span><span>UTF-8</span>
+    <span class="spacer"></span><span><span class="dot">●</span> Cursor-theme preview</span>
+  </footer>
+</div>
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const files={
+ 'main.py':{lang:'Python',body:'def greet(name):\n    return f"hello, {name}"\n\nprint(greet("LCC"))\n'},
+ 'app.js':{lang:'JavaScript',body:'const greet = (name) => `hello, ${name}`;\n\nconsole.log(greet("LCC"));\n'},
+ 'styles.css':{lang:'CSS',body:'.card {\n  background: #ffffff;\n  border: 1px solid #e6e5e0;\n  border-radius: 12px;\n}\n'},
+ 'logo.png':{lang:'Binary',body:'[binary preview not supported in mock]'}
+};
+const openTabs=['main.py'];let active='main.py';
+const tabs=$('tabs'),code=$('code'),gutter=$('gutter');
+function renderTabs(){tabs.innerHTML='';openTabs.forEach(f=>{const b=document.createElement('button');b.className='tab'+(f===active?' active':'');const s=document.createElement('span');s.textContent=f;b.appendChild(s);const x=document.createElement('span');x.className='x';x.textContent='×';x.onclick=e=>{e.stopPropagation();const i=openTabs.indexOf(f);if(openTabs.length>1){openTabs.splice(i,1);if(active===f)activate(openTabs[Math.max(0,i-1)])}};b.appendChild(x);b.onclick=()=>activate(f);tabs.appendChild(b)})}
+function activate(f){active=f;code.value=files[f].body;$('stLang').textContent=files[f].lang;syncGutter();caret();renderTabs();document.querySelectorAll('.file').forEach(el=>el.classList.toggle('active',el.dataset.file===f))}
+function syncGutter(){const n=code.value.split('\n').length;let s='';for(let i=1;i<=n;i++)s+=i+'\n';gutter.textContent=s;gutter.scrollTop=code.scrollTop}
+function caret(){const v=code.value.slice(0,code.selectionStart).split('\n');$('stPos').textContent='Ln '+v.length+', Col '+(v[v.length-1].length+1)}
+code.addEventListener('input',()=>{files[active].body=code.value;syncGutter();caret()});
+code.addEventListener('scroll',()=>{gutter.scrollTop=code.scrollTop});
+code.addEventListener('keyup',caret);code.addEventListener('click',caret);
+code.addEventListener('keydown',e=>{if(e.key==='Tab'){e.preventDefault();const s=code.selectionStart;code.setRangeText('  ',s,code.selectionEnd,'end');files[active].body=code.value;syncGutter()}});
+document.querySelectorAll('[data-folder]').forEach(f=>f.onclick=()=>f.classList.toggle('closed'));
+document.querySelectorAll('[data-file]').forEach(f=>f.onclick=()=>{const n=f.dataset.file;if(!openTabs.includes(n))openTabs.push(n);activate(n)});
+$('actExplorer').onclick=()=>{$('shell').classList.remove('collapsed');setAct('actExplorer')};
+$('actCollapse').onclick=()=>{const sh=$('shell');sh.classList.toggle('collapsed')};
+$('actTerminal').onclick=()=>{setAct('actTerminal');$('termInput').focus()};
+function setAct(id){document.querySelectorAll('.activity button').forEach(b=>b.classList.toggle('active',b.id===id))}
+document.querySelectorAll('.ptab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.ptab').forEach(x=>x.classList.remove('active'));b.classList.add('active');$('termTab').style.display=b.dataset.ptab==='term'?'':'none';$('agentTab').style.display=b.dataset.ptab==='agent'?'':'none'});
+const handle=$('resize'),panel=$('panel'),shell=$('shell');
+handle.addEventListener('pointerdown',e=>{e.preventDefault();handle.setPointerCapture(e.pointerId);const y0=e.clientY,h0=panel.offsetHeight;
+const mv=ev=>{const h=Math.min(400,Math.max(120,h0+(y0-ev.clientY)));shell.style.gridTemplateRows=`minmax(0,1fr) ${h}px 28px`};
+const up=()=>{handle.removeEventListener('pointermove',mv);handle.removeEventListener('pointerup',up)};
+handle.addEventListener('pointermove',mv);handle.addEventListener('pointerup',up)});
+const out=$('termOut'),tin=$('termInput');
+tin.addEventListener('keydown',e=>{if(e.key!=='Enter')return;const cmd=tin.value.trim();tin.value='';print('$ '+cmd);
+if(cmd==='help')print('commands: help · clear · run · echo <text>');
+else if(cmd==='clear')out.innerHTML='';
+else if(cmd==='run')fakeRun();
+else if(cmd.startsWith('echo '))print(cmd.slice(5));
+else if(cmd!=='')print('<span class="err">not found (mock): '+cmd+'</span>');out.parentElement.scrollTop=1e6});
+function print(html){const d=document.createElement('div');d.innerHTML=html;out.appendChild(d)}
+let n=0;function fakeRun(){const seq=[['thinking','Thinking about main.py…'],['read','Reading 3 lines…'],['grep','Checking for print…'],['edit','Formatting…'],['done','1 in 0.04s']];const i=n++%seq.length;const[s,t]=seq[i];print('<span class="pill '+s+'">'+s+'</span> '+t)}
+$('runBtn').onclick=()=>{document.querySelectorAll('.ptab').forEach(x=>x.classList.toggle('active',x.dataset.ptab==='term'));$('termTab').style.display='';$('agentTab').style.display='none';print('$ run main.py');fakeRun();fakeRun();out.parentElement.scrollTop=1e6};
+activate('main.py');
+})();
+</script>
+</body>
+</html>
