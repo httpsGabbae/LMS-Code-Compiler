@@ -42,6 +42,7 @@ $nodeBin = file_exists('C:\\Program Files\\nodejs\\node.exe') ? 'C:\\Program Fil
 $javacBin = file_exists('C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.17.10-hotspot\\bin\\javac.exe') ? 'C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.17.10-hotspot\\bin\\javac.exe' : 'javac';
 $javaBin = file_exists('C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.17.10-hotspot\\bin\\java.exe') ? 'C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.17.10-hotspot\\bin\\java.exe' : 'java';
 $cscDll = null; foreach ((array)glob('C:/Program Files/dotnet/sdk/*/Roslyn/bincore/csc.dll') as $d) { $cscDll = $d; }
+$dotnetBin = file_exists('C:\Program Files\dotnet\dotnet.exe') ? 'C:\Program Files\dotnet\dotnet.exe' : 'dotnet';
 $runCmd = '';
 if ($lang === 'python') { file_put_contents($tmp.'/main.py', $code); $runCmd = escapeshellarg($pyBin).' '.escapeshellarg($tmp.'/main.py'); }
 elseif ($lang === 'php') { file_put_contents($tmp.'/main.php', $code); $runCmd = escapeshellarg($phpBin).' '.escapeshellarg($tmp.'/main.php'); }
@@ -50,10 +51,12 @@ elseif ($lang === 'java') { file_put_contents($tmp.'/Main.java', $code); $runCmd
 elseif ($lang === 'csharp') {
   file_put_contents($tmp.'/Main.cs', $code);
   $refDir = null; foreach ((array)glob('C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Ref/*/ref/net*/') as $g) { $refDir = rtrim($g, '/\\').'/'; }
-  if ($cscDll === null || $refDir === null) { echo json_encode(['status'=>'needs SDK','stdout'=>'','stderr'=>'dotnet SDK csc not found','time'=>'']); exit; }
+  if ($cscDll === null || $refDir === null) { @rmdir($tmp); echo json_encode(['status'=>'needs SDK','stdout'=>'','stderr'=>'dotnet SDK csc not found','time'=>'']); exit; }
   $refArgs = ''; foreach (['mscorlib.dll','netstandard.dll','System.Runtime.dll','System.Console.dll','System.Collections.dll','System.Linq.dll','System.Linq.Expressions.dll','System.Text.RegularExpressions.dll','System.Threading.dll','System.Threading.Tasks.dll'] as $r) { if (file_exists($refDir.$r)) $refArgs .= ' /r:'.escapeshellarg($refDir.$r); }
-  file_put_contents($tmp.'/Main.runtimeconfig.json', '{"runtimeOptions":{"tfm":"net8.0","framework":{"name":"Microsoft.NETCore.App","version":"8.0.0"}}}');
-  $runCmd = 'dotnet '.escapeshellarg($cscDll).' /nologo'.$refArgs.' /out:'.escapeshellarg($tmp.'/Main.dll').' '.escapeshellarg($tmp.'/Main.cs').' && dotnet '.escapeshellarg($tmp.'/Main.dll');
+  $sdkVer = '8.0.0'; $sdkTfm = 'net8.0';
+  if (preg_match('/(\d+)\.(\d+)\.(\d+)/', (string)$refDir, $vm)) { $sdkVer = $vm[1].'.'.$vm[2].'.'.$vm[3]; $sdkTfm = 'net'.$vm[1].'.'.$vm[2]; }
+  file_put_contents($tmp.'/Main.runtimeconfig.json', '{"runtimeOptions":{"tfm":"'.$sdkTfm.'","framework":{"name":"Microsoft.NETCore.App","version":"'.$sdkVer.'"}}}');
+  $runCmd = escapeshellarg($dotnetBin).' '.escapeshellarg($cscDll).' /nologo'.$refArgs.' /out:'.escapeshellarg($tmp.'/Main.dll').' '.escapeshellarg($tmp.'/Main.cs').' && '.escapeshellarg($dotnetBin).' '.escapeshellarg($tmp.'/Main.dll');
 }
 $desc = [0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']];
 $proc = proc_open($runCmd, $desc, $pipes, $tmp);
@@ -74,5 +77,5 @@ foreach ([1,2] as $i) { $rest = stream_get_contents($pipes[$i]); if ($rest !== f
 @proc_close($proc);
 if ($timedOut) $stderr .= "\n[TIMEOUT after 10s — demo limit]";
 $stdout = substr($stdout, 0, 20000); $stderr = substr(trim($stderr), 0, 20000);
-@unlink($tmp.'/main.py'); @unlink($tmp.'/main.php'); @unlink($tmp.'/main.js'); @unlink($tmp.'/Main.java'); @unlink($tmp.'/Main.class'); @unlink($tmp.'/Main.cs'); @unlink($tmp.'/Main.dll'); @unlink($tmp.'/Main.runtimeconfig.json'); @rmdir($tmp);
+@unlink($tmp.'/main.py'); @unlink($tmp.'/main.php'); @unlink($tmp.'/main.js'); @unlink($tmp.'/Main.java'); @unlink($tmp.'/Main.class'); @unlink($tmp.'/Main.cs'); @unlink($tmp.'/Main.dll'); @unlink($tmp.'/Main.pdb'); @unlink($tmp.'/Main.runtimeconfig.json'); @rmdir($tmp);
 echo json_encode(['status'=>($timedOut ? 'Timeout' : 'Accepted').' (local demo)','stdout'=>$stdout,'stderr'=>$stderr,'time'=>'']);
