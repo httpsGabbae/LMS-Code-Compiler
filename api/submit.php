@@ -14,9 +14,9 @@ $known = ['python','javascript','php','java','csharp','cpp','c','html','css'];
 if (!in_array($l, $known, true)) { http_response_code(400); echo json_encode(['error'=>'bad language']); exit; }
 $m = db();
 try {
-  $st = $m->prepare("INSERT INTO submissions (student_name,class_code,language,code,output) VALUES (?,?,?,?,?)");
+  $st = $m->prepare("INSERT INTO submissions (student_name,class_code,filename,language,code,output) VALUES (?,?,?,?,?,?)");
   if ($st === false) { http_response_code(500); echo json_encode(['error'=>'db failed']); exit; }
-  $st->bind_param('sssss', $n, $c, $l, $code, $out);
+  $st->bind_param('ssssss', $n, $c, $filename, $l, $code, $out);
   if ($st->execute() !== true) { http_response_code(500); echo json_encode(['error'=>'db failed']); exit; }
 } catch (mysqli_sql_exception $ex) { http_response_code(500); echo json_encode(['error'=>'db failed']); exit; }
 echo json_encode(['ok'=>true,'id'=>$m->insert_id]);

@@ -17,3 +17,11 @@ CREATE TABLE IF NOT EXISTS test_cases (
   expected_stdout MEDIUMTEXT NOT NULL,
   KEY idx_tc (class_code, language)
 ) ENGINE=InnoDB;
+ALTER TABLE submissions ADD COLUMN filename VARCHAR(255) NOT NULL DEFAULT '' AFTER class_code;
+UPDATE submissions SET filename='main.py' WHERE language='python' AND filename='';
+UPDATE submissions SET filename='main.js' WHERE language='javascript' AND filename='';
+UPDATE submissions SET filename='main.php' WHERE language='php' AND filename='';
+UPDATE submissions SET filename='Main.java' WHERE language='java' AND filename='';
+UPDATE submissions SET filename='main.cpp' WHERE language='cpp' AND filename='';
+UPDATE submissions SET filename='main.c' WHERE language='c' AND filename='';
+UPDATE submissions SET filename='main.txt' WHERE filename='';

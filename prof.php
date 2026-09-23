@@ -34,7 +34,7 @@ $st->execute();
 $snaps = $st->get_result();
 $grouped = [];
 while ($r = $snaps->fetch_assoc()) { $grouped[$r['student_name']][] = $r; }
-$st2 = $m->prepare("SELECT student_name,language,LEFT(code,500) AS cp,LEFT(output,500) AS op,created_at FROM submissions WHERE class_code=? ORDER BY created_at DESC LIMIT 50");
+$st2 = $m->prepare("SELECT student_name,filename,language,LEFT(code,500) AS cp,LEFT(output,500) AS op,created_at FROM submissions WHERE class_code=? ORDER BY created_at DESC LIMIT 50");
 $st2->bind_param('s', $filter);
 $st2->execute();
 $subs = $st2->get_result();
@@ -136,6 +136,7 @@ $cases = $stc->get_result();
                 <table>
                     <tr>
                         <th>Student</th>
+                        <th>File</th>
                         <th>Lang</th>
                         <th>Code preview</th>
                         <th>Output preview</th>
@@ -143,6 +144,7 @@ $cases = $stc->get_result();
                     </tr>
                     <?php while ($r = $subs->fetch_assoc()): ?><tr>
                             <td><?php echo e($r['student_name']); ?></td>
+                            <td><?php echo e($r['filename'] !== '' ? $r['filename'] : '(legacy)'); ?></td>
                             <td><?php echo e($r['language']); ?></td>
                             <td>
                                 <pre><?php echo e($r['cp']); ?></pre>
