@@ -1,3 +1,4 @@
+-- ONE-SHOT: run once; fresh installs use database/schema.sql — do not re-run
 USE lcc_compiler;
 ALTER TABLE snapshots ADD COLUMN filename VARCHAR(255) NOT NULL DEFAULT '' AFTER class_code;
 UPDATE snapshots SET filename='main.py' WHERE language='python' AND filename='';

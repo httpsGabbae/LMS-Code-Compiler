@@ -35,7 +35,7 @@
                 </div>
                 <div class="side-group">
                     <h3>LANGUAGE</h3>
-                    <select id="langSel">
+                    <select id="langSel" hidden style="display:none" tabindex="-1" aria-hidden="true">
                         <option value="python">Python</option>
                         <option value="javascript">JavaScript</option>
                         <option value="php">PHP</option>

@@ -37,6 +37,8 @@ Python=71, JS Node=63, PHP=68, Java=62, C#=51, C++=54, C=50.
 
 ## Check-all (multi-file)
 
+Migration `database/migrate_check_all.sql` is ONE-SHOT: run once; fresh installs use `database/schema.sql` — do not re-run.
+
 Every file carries its language via its extension. The server derives the language with `ext_lang()` in `config/languages.php` — a client-sent language is never trusted for execution choice.
 
 | Extension | Language | Kind | How Check-all handles it |

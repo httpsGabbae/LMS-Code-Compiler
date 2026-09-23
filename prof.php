@@ -21,9 +21,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         }
     } elseif (isset($_POST['del_case'])) {
         $id = (int)($_POST['del_case'] ?? 0);
-        if ($id > 0) {
-            $del = $m->prepare("DELETE FROM test_cases WHERE id=?");
-            if ($del !== false) { $del->bind_param('i', $id); $del->execute(); $tc_msg = 'Case deleted.'; }
+        $dc = trim($_POST['del_class'] ?? $filter ?? '');
+        if ($id <= 0 || $dc === '' || mb_strlen($dc) > 50) { http_response_code(400); $tc_err = 'Bad delete.'; }
+        else {
+            $del = $m->prepare("DELETE FROM test_cases WHERE id=? AND class_code=?");
+            if ($del === false) { http_response_code(500); $tc_err = 'DB failed.'; }
+            else { $del->bind_param('is', $id, $dc); $del->execute(); if ($del->affected_rows > 0) { $tc_msg = 'Case deleted.'; } else { $tc_msg = 'Case not found.'; } }
         }
     }
 }
@@ -126,7 +129,7 @@ $cases = $stc->get_result();
                                 <pre><?php echo e($r['eo']); ?></pre>
                             </td>
                             <td>
-                                <form method="post"><?php echo csrf_field(); ?><button name="del_case" value="<?php echo (int)$r['id']; ?>">Delete</button></form>
+                                <form method="post"><?php echo csrf_field(); ?><input type="hidden" name="del_class" value="<?php echo e($filter); ?>"><button name="del_case" value="<?php echo (int)$r['id']; ?>">Delete</button></form>
                             </td>
                         </tr><?php endwhile; ?>
                 </table>

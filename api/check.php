@@ -65,14 +65,15 @@ function run_code(string $lang, string $code, string $stdin): array {
     if (!$st['running']) break;
     if (microtime(true) - $t0 > 10) { $timedOut = true; @proc_terminate($proc); break; }
     usleep(50000);
-    if (strlen($stdout) > 20000 || strlen($stderr) > 20000) break;
+    if (strlen($stdout) > 20000 || strlen($stderr) > 20000) { @proc_terminate($proc); break; }
   }
   foreach ([1,2] as $i) { $rest = stream_get_contents($pipes[$i]); if ($rest !== false) { if ($i === 1) $stdout .= $rest; else $stderr .= $rest; } fclose($pipes[$i]); }
-  @proc_close($proc);
+  $exit = @proc_close($proc);
   if ($timedOut) $stderr .= "\n[TIMEOUT after 10s — demo limit]";
   $stdout = substr($stdout, 0, 20000); $stderr = substr(trim($stderr), 0, 20000);
   @unlink($tmp.'/main.py'); @unlink($tmp.'/main.php'); @unlink($tmp.'/main.js'); @unlink($tmp.'/Main.java'); @unlink($tmp.'/Main.class'); @unlink($tmp.'/Main.cs'); @unlink($tmp.'/Main.dll'); @unlink($tmp.'/Main.pdb'); @unlink($tmp.'/Main.runtimeconfig.json'); @rmdir($tmp);
-  return ['status'=>($timedOut ? 'Timeout' : 'Accepted').' (local demo)','stdout'=>$stdout,'stderr'=>$stderr,'time'=>''];
+  $status = $timedOut ? 'Timeout' : (((int)$exit !== 0) ? 'Runtime Error' : 'Accepted');
+  return ['status'=>$status.' (local demo)','stdout'=>$stdout,'stderr'=>$stderr,'time'=>''];
 }
 
 function check_tc_rows(string $class, string $lang): array {
@@ -103,6 +104,8 @@ foreach ($files as $f) {
   $kind = lang_kind($lang);
   if (strlen($code) > 50000) { $out[] = ['filename'=>$safe,'kind'=>$kind,'status'=>'error','detail'=>'too large']; continue; }
   if ($kind === 'run') {
+    if (trim($code)==='') { $out[] = ['filename'=>$safe,'kind'=>$kind,'status'=>'skip','detail'=>'empty file']; }
+    else {
     $cases = check_tc_rows($c, $lang);
     if (!$cases) {
       $r = run_code($lang, $code, '');
@@ -114,11 +117,12 @@ foreach ($files as $f) {
       $details = []; $allPass = true;
       foreach ($cases as $i => $tc) {
         $r = run_code($lang, $code, (string)$tc['stdin']);
-        $ok = (norm_output($r['stdout']) === norm_output((string)$tc['expected_stdout']));
+        $ok = (norm_output($r['stdout']) === norm_output((string)$tc['expected_stdout']) && strpos($r['status'], 'Accepted') !== false);
         if (!$ok) $allPass = false;
         $details[] = 'case'.($i + 1).' '.($ok ? 'pass' : 'fail');
       }
       $out[] = ['filename'=>$safe,'kind'=>$kind,'status'=>$allPass ? 'pass' : 'fail','detail'=>implode('; ', $details)];
+    }
     }
   } elseif ($kind === 'preview') {
     $src = $code;
@@ -143,7 +147,7 @@ foreach ($files as $f) {
           if (!$rst['running']) break;
           if (microtime(true) - $rt0 > 10) { $rtimed = true; @proc_terminate($rproc); break; }
           usleep(50000);
-          if (strlen($rout) > 20000) break;
+          if (strlen($rout) > 20000) { @proc_terminate($rproc); break; }
         }
         foreach ([1,2] as $i) { $rest = stream_get_contents($rpipes[$i]); if ($rest !== false && $i === 1) $rout .= $rest; fclose($rpipes[$i]); }
         @proc_close($rproc);
